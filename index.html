@@ -1,5 +1,37 @@
+<!doctype html>
 <html>
-  <body>
-    Test
-  </body>
+
+<head>
+  <meta charset="utf-8">
+  <title>Big Foxy's Bed Time</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+  <script src="script.js"></script>
+  <style>
+    html,
+    body {
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="renderCanvas" touch-action="none"></canvas>
+  <script>
+    setupGame();
+
+  </script>
+</body>
+
 </html>
