@@ -189,8 +189,8 @@ function smoothstep(edge0, edge1, x) {
       var deltaTime = getTimeInSeconds() - lastStepTime;
       const gravity = 9.8;
       var newFoxyPosition = new BABYLON.Vector3();
-      newFoxyPosition.z = foxyPosition.z;
-      newFoxyPosition.x = foxyPosition.x + pitchDirectionAtJump * maxLateralSpeed;
+      newFoxyPosition.z = foxyPosition.z + (pitchDirectionAtJump * maxLateralSpeed) * Math.cos(foxyTransform.rotation.y);
+      newFoxyPosition.x = foxyPosition.x + (pitchDirectionAtJump * maxLateralSpeed) * Math.sin(foxyTransform.rotation.y);
       newFoxyPosition.y = foxyPosition.y + deltaTime * velocity_y;
       velocity_y = velocity_y - (gravity * deltaTime);
       squish = 0.2 - 0.6 * Math.abs(velocity_y) / 20;
