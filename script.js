@@ -1,3 +1,9 @@
+// todo: speed up game
+// todo: intersection with axis-aligned object sides
+// todo: intersection with floor and landings
+// todo: intersection with roofs / head-hit
+// todo: tweak game play control
+
 function smoothstep(edge0, edge1, x) {
     if (x < edge0)
       return 0;
@@ -41,16 +47,16 @@ function smoothstep(edge0, edge1, x) {
   var foxyPitchAnimation = null;
   var foxyAnimRestFrame = 60;
 
-  const speed_modifier = 1.0;
+  const speed_modifier = 2.0;
   const yawSpeed = 0.1;
   const maxPitch = Math.PI / 16;
   const maxLateralSpeed = 0.1;
   function prepareNextJump() {
-    nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5) * speed_modifier;
+    nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
     nextJumpPrepLength = 2.0 * Math.random() ** 2.0 + 0.1;
   }
   function getTimeInSeconds() {
-    return Date.now() / 1000;
+    return speed_modifier * Date.now() / 1000;
   }
   function currentPitchDirection() {
     if (pitchForward && !pitchBackward) {
@@ -195,14 +201,14 @@ function smoothstep(edge0, edge1, x) {
     foxyPitchAnimation.goToFrame(foxyAnimRestFrame + Math.round(interpolatedCurrentPitch()*60/maxPitch));
     foxyPitchAnimation.pause();
     if (preparingToJump) {
-      var prepTime = getTimeInSeconds() - prepareJumpStartTime * speed_modifier;
+      var prepTime = getTimeInSeconds() - prepareJumpStartTime;
       const freq = 1.0 / 7;
       const amp = 0.1;
       squish = smoothstep(0, 0.1, prepTime) * 0.5;
-      roll = smoothstep(0.3, 1, prepTime) * Math.sin((prepTime / freq) * Math.PI * 2) * amp;
+      roll = smoothstep(0.3, 1, prepTime) * Math.sin((prepTime / freq) * Math.PI * 2 / speed_modifier) * amp;
     }
     if (jumping) {
-      var deltaTime = getTimeInSeconds() - lastStepTime * speed_modifier;
+      var deltaTime = getTimeInSeconds() - lastStepTime;
       const gravity = 9.8;
       var newFoxyPosition = new BABYLON.Vector3();
       newFoxyPosition.z = foxyPosition.z + (pitchDirectionAtJump * maxLateralSpeed) * Math.cos(foxyTransform.rotation.y + Math.PI/2);
@@ -258,7 +264,7 @@ function smoothstep(edge0, edge1, x) {
       }
     }
     if (landing) {
-      var landingTime = getTimeInSeconds() - landingStartTime  * speed_modifier;
+      var landingTime = getTimeInSeconds() - landingStartTime;
       var max_squish = 0.2 * landing_velocity / 20.0;
       squish = max_squish * Math.cos(4.0 * Math.sqrt(landingTime) + Math.PI / 2);
       if (landingTime > 0.6) {
@@ -284,7 +290,12 @@ function smoothstep(edge0, edge1, x) {
       // load level
       BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level1.glb").then((result) => {
         level_meshes = result.meshes;
-  
+        for (var i = 0; i < result.meshes.length; i++) {
+            level_meshes[i].receiveShadows = true;
+            if (level_meshes[i].id == "Room") {
+                extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
+            }
+        }
         // load big foxy
         BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
           foxyTransform = result.meshes[1];
@@ -300,7 +311,25 @@ function smoothstep(edge0, edge1, x) {
           //        octree = scene.createOrUpdateSelectionOctree(64, 2);
           //        octree.dynamicContent.push(foxyTransform);
   
-  
+          var shadow_caster = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -1, 0), scene);
+          shadow_caster.position = new BABYLON.Vector3(0, 120, 0);
+          shadow_caster.autoUpdateExtends = true;
+          shadow_caster.autoCalcShadowZBounds;
+
+          // todo: fix shadow quality
+          shadow_caster.shadowMinZ = shadow_caster.position.y - extents.max.y;
+//          shadow_caster.shadowMaxZ = shadow_caster.shadowMinZ + (extents.max.y - extents.min.y) + 20;
+      
+          const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+          light.diffuse = new BABYLON.Color3(0.4, 0.4, 0.4);
+          light.specular = new BABYLON.Color3(0.4, 0.4, 0.4);
+          light.groundColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+          var shadowGenerator = new BABYLON.ShadowGenerator(1024, shadow_caster);
+          shadowGenerator.getShadowMap().renderList.push(foxyTransform);
+          shadowGenerator.useBlurExponentialShadowMap = true;
+          shadowGenerator.useKernelBlur = true;
+          shadowGenerator.blurKernel = 64;
+      
           prepareNextJump();
         })
       });
@@ -327,7 +356,6 @@ function smoothstep(edge0, edge1, x) {
       // This attaches the camera to the canvas
       camera.attachControl(canvas, true);
   
-      const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
       return scene;
     };
     const scene = createScene();
