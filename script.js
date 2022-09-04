@@ -37,12 +37,16 @@ function smoothstep(edge0, edge1, x) {
   var foxy_halfwidth = 1;
   var foxy_bottom_offset = 0;
   var foxy_top_offset = 0;
-  
+  var url_prefix = "https://bigfoxybouncinggame.github.io/Stuffies-Bedtime-Game/";
+  var foxyPitchAnimation = null;
+  var foxyAnimRestFrame = 60;
+
+  const speed_modifier = 1.0;
   const yawSpeed = 0.1;
   const maxPitch = Math.PI / 16;
   const maxLateralSpeed = 0.1;
   function prepareNextJump() {
-    nextJumpStartTime = getTimeInSeconds() + Math.random() * 0.5;
+    nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5) * speed_modifier;
     nextJumpPrepLength = 2.0 * Math.random() ** 2.0 + 0.1;
   }
   function getTimeInSeconds() {
@@ -60,7 +64,7 @@ function smoothstep(edge0, edge1, x) {
     }
   }
   function interpolatedCurrentPitch() {
-    return smoothstep(0, 0.05, getTimeInSeconds() - changePitchTime) * (currentPitchDirection() * maxPitch - lastPitch) + lastPitch;
+    return smoothstep(0, 0.2, getTimeInSeconds() - changePitchTime) * (currentPitchDirection() * maxPitch - lastPitch) + lastPitch;
   }
   function currentYawDirection() {
     if (yawCW && !yawCCW) {
@@ -100,10 +104,10 @@ function smoothstep(edge0, edge1, x) {
       if (m.id == "Room") {
         var extents = BABYLON.Mesh.MinMax([m]);
         if (to.z - foxy_halfwidth < extents.min.z) {
-          y_hit_pos = extents.min.z + foxy_halfwidth;
+          z_hit_pos = extents.min.z + foxy_halfwidth;
         }
         if (to.z + foxy_halfwidth > extents.max.z) {
-          y_hit_pos = extents.max.z - foxy_halfwidth;
+          z_hit_pos = extents.max.z - foxy_halfwidth;
         }
         if (to.x - foxy_halfwidth < extents.min.x) {
           x_hit_pos = extents.min.x + foxy_halfwidth;
@@ -130,13 +134,22 @@ function smoothstep(edge0, edge1, x) {
     }
   }
   function startPitching(direction) {
-    lastPitch = foxyTransform.rotation.z;
-    changePitchTime = getTimeInSeconds();
-    if (direction == 1) {
-      pitchForward = true;
+    var change = true;
+    if (pitchForward && direction == 1) {
+        change = false;
     }
-    else {
-      pitchBackward = true;
+    if (pitchBackward && direction == -1) {
+        change = false;
+    }
+    if (change) {
+        lastPitch = foxyTransform.rotation.z;
+        changePitchTime = getTimeInSeconds();
+        if (direction == 1) {
+        pitchForward = true;
+        }
+        else {
+        pitchBackward = true;
+        }
     }
   }
   function stopPitching(direction) {
@@ -176,17 +189,20 @@ function smoothstep(edge0, edge1, x) {
     }
     var roll = 0;
     var yaw = foxyTransform.rotation.y + currentYawDirection() * yawSpeed;
-    var pitch = interpolatedCurrentPitch();
+    var pitch = 0;
     var squish = 0;
+    foxyPitchAnimation.play();
+    foxyPitchAnimation.goToFrame(foxyAnimRestFrame + Math.round(interpolatedCurrentPitch()*60/maxPitch));
+    foxyPitchAnimation.pause();
     if (preparingToJump) {
-      var prepTime = getTimeInSeconds() - prepareJumpStartTime;
+      var prepTime = getTimeInSeconds() - prepareJumpStartTime * speed_modifier;
       const freq = 1.0 / 7;
       const amp = 0.1;
       squish = smoothstep(0, 0.1, prepTime) * 0.5;
       roll = smoothstep(0.3, 1, prepTime) * Math.sin((prepTime / freq) * Math.PI * 2) * amp;
     }
     if (jumping) {
-      var deltaTime = getTimeInSeconds() - lastStepTime;
+      var deltaTime = getTimeInSeconds() - lastStepTime * speed_modifier;
       const gravity = 9.8;
       var newFoxyPosition = new BABYLON.Vector3();
       newFoxyPosition.z = foxyPosition.z + (pitchDirectionAtJump * maxLateralSpeed) * Math.cos(foxyTransform.rotation.y + Math.PI/2);
@@ -203,13 +219,30 @@ function smoothstep(edge0, edge1, x) {
       }
       else {
         // intersection
+        var delta = newFoxyPosition.subtract(foxyPosition);
         if (collision.x_hit_pos != null) {
-          pitchDirectionAtJump = -pitchDirectionAtJump;
-          newFoxyPosition.x = collision.x_hit_pos + pitchDirectionAtJump * maxLateralSpeed;
+            console.log("x_hit");
+            if (Math.abs(delta.x) > Math.abs(delta.z)) {
+                // in a sharp hit, we reverse direction and make a small change of angle
+                pitchDirectionAtJump *= -1;
+                yaw = -foxyTransform.rotation.y;
+            }
+            else {
+                // in a shallow hit, we bounce off the wall and point the new direction.
+                yaw = Math.PI - foxyTransform.rotation.y;
+            }
+            newFoxyPosition.x = collision.x_hit_pos + (foxyPosition.x - newFoxyPosition.x);
         }
         if (collision.z_hit_pos != null) {
-          //        velocity_z = -velocity_z;
-          //        newFoxyPosition.z = collision.z_hit_pos + velocity_z;
+            console.log("z_hit");
+            if (Math.abs(delta.z) > Math.abs(delta.x)) {
+                pitchDirectionAtJump *= -1;
+                yaw = Math.PI - foxyTransform.rotation.y;
+            }
+            else {
+                yaw = -foxyTransform.rotation.y;
+            }
+            newFoxyPosition.z = collision.z_hit_pos + (foxyPosition.z - newFoxyPosition.z);
         }
         foxyPosition = newFoxyPosition;
         console.log("intersects: " + collision);
@@ -225,7 +258,7 @@ function smoothstep(edge0, edge1, x) {
       }
     }
     if (landing) {
-      var landingTime = getTimeInSeconds() - landingStartTime;
+      var landingTime = getTimeInSeconds() - landingStartTime  * speed_modifier;
       var max_squish = 0.2 * landing_velocity / 20.0;
       squish = max_squish * Math.cos(4.0 * Math.sqrt(landingTime) + Math.PI / 2);
       if (landingTime > 0.6) {
@@ -249,16 +282,19 @@ function smoothstep(edge0, edge1, x) {
   
   
       // load level
-      BABYLON.SceneLoader.ImportMeshAsync("", "Level", "1.glb").then((result) => {
+      BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level1.glb").then((result) => {
         level_meshes = result.meshes;
   
         // load big foxy
-        BABYLON.SceneLoader.ImportMeshAsync("", "BIG", "FOXY_v2.glb").then((result) => {
+        BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
           foxyTransform = result.meshes[1];
           foxyTransform.parent = null;
           foxyTransform.rotation.y = Math.PI;
           foxyPosition = foxyTransform.position;
   
+          foxyPitchAnimation = scene.animationGroups[0];
+          foxyPitchAnimation.goToFrame(30);
+          foxyPitchAnimation.stop();
           camera.lockedTarget = foxyTransform; //version 2.5 onwards
   
           //        octree = scene.createOrUpdateSelectionOctree(64, 2);
@@ -266,7 +302,6 @@ function smoothstep(edge0, edge1, x) {
   
   
           prepareNextJump();
-          console.log(result);
         })
       });
   
