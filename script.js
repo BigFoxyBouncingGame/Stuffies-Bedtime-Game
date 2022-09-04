@@ -99,18 +99,31 @@ function stopYawing(direction) {
     }
 }
 function testCollisions(from, to) {
-    var ray = new BABYLON.Ray(from, to, from.subtract(to).length());
+    var bottom_offset_vec = new BABYLON.Vector3(0,foxy_bottom_offset - 0.01,0);
+    var top_offset_vec = new BABYLON.Vector3(0,foxy_top_offset,0);
+
+    var direction = to.subtract(from);
+    var length = direction.length();
+    direction = direction.normalize();
+
+    var ray = new BABYLON.Ray(from, direction, length);
+    var ray_bottom = new BABYLON.Ray(from.subtract(bottom_offset_vec), direction, length);
+    var ray_top = new BABYLON.Ray(from.add(top_offset_vec), direction, length);
     var x_hit_pos;
     var y_hit_pos;
     var z_hit_pos;
 
     // scene picking https://doc.babylonjs.com/divingDeeper/mesh/interactions/picking_collisions instead
     var hit = scene.pickWithRay(ray);   
+    var hit_bottom = scene.pickWithRay(ray_bottom);   
+    var hit_top = scene.pickWithRay(ray_top);
+    hit = hit_bottom;
     if (hit) {
         if (hit.hit && hit.distance < ray.length) {
             // todo: non-axis-aligned surfaces
             var normal = hit.getNormal(true);
             var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
+            pickedPoint.y = hit.pickedPoint.y;
             if (Math.abs(normal.y) == 1) {
                 y_hit_pos = pickedPoint.y + foxy_bottom_offset;
                 console.log("y hit obstacle: " + y_hit_pos);
