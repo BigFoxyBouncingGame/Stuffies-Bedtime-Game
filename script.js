@@ -40,7 +40,7 @@ var octree = null;
 var level_meshes = null;
 var level_extents = null;
 var foxy_halfwidth = 1;
-var foxy_bottom_offset = 0;
+var foxy_bottom_offset = 1;
 var foxy_top_offset = 0;
 var url_prefix = "https://bigfoxybouncinggame.github.io/Stuffies-Bedtime-Game/";
 var foxyPitchAnimation = null;
@@ -50,102 +50,119 @@ const speed_modifier = 2.0;
 const yawSpeed = 0.1;
 const maxPitch = Math.PI / 16;
 const maxLateralSpeed = 0.1;
-  function prepareNextJump() {
-    nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
+function prepareNextJump() {
+nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
     nextJumpPrepLength = 2.0 * Math.random() ** 2.0 + 0.1;
-  }
-  function getTimeInSeconds() {
+}
+function getTimeInSeconds() {
     return speed_modifier * Date.now() / 1000;
-  }
-  function currentPitchDirection() {
+}
+function currentPitchDirection() {
     if (pitchForward && !pitchBackward) {
-      return 1;
+        return 1;
     }
     else if (pitchBackward && !pitchForward) {
-      return -1;
+        return -1;
     }
     else {
-      return 0;
+        return 0;
     }
-  }
-  function interpolatedCurrentPitch() {
+}
+function interpolatedCurrentPitch() {
     return smoothstep(0, 0.2, getTimeInSeconds() - changePitchTime) * (currentPitchDirection() * maxPitch - lastPitch) + lastPitch;
-  }
-  function currentYawDirection() {
+}
+function currentYawDirection() {
     if (yawCW && !yawCCW) {
-      return 1;
+        return 1;
     }
     else if (yawCCW && !yawCW) {
-      return -1;
+        return -1;
     }
     else {
-      return 0;
+        return 0;
     }
-  }
-  function startYawing(direction) {
+}
+function startYawing(direction) {
     if (direction == 1) {
-      yawCW = true;
+        yawCW = true;
     }
     else {
-      yawCCW = true;
+        yawCCW = true;
     }
-  }
-  function stopYawing(direction) {
+}
+function stopYawing(direction) {
     if (direction == 1) {
-      yawCW = false;
+        yawCW = false;
     }
     else {
-      yawCCW = false;
+        yawCCW = false;
     }
-  }
-  function testCollisions(from, to) {
+}
+function testCollisions(from, to) {
     var ray = new BABYLON.Ray(from, to, from.subtract(to).length());
     var x_hit_pos;
     var y_hit_pos;
     var z_hit_pos;
 
-    if (to.z - foxy_halfwidth < level_extents.min.z) {
-        z_hit_pos = level_extents.min.z + foxy_halfwidth;
-    }
-    if (to.z + foxy_halfwidth > level_extents.max.z) {
-        z_hit_pos = level_extents.max.z - foxy_halfwidth;
-    }
-    if (to.x - foxy_halfwidth < level_extents.min.x) {
-        x_hit_pos = level_extents.min.x + foxy_halfwidth;
-    }
-    if (to.x + foxy_halfwidth > level_extents.max.x) {
-        x_hit_pos = level_extents.max.x - foxy_halfwidth;
-    }
-
-    if (x_hit_pos == null && y_hit_pos == null && z_hit_pos == null) {
-        // scene picking https://doc.babylonjs.com/divingDeeper/mesh/interactions/picking_collisions instead
-        var hit = scene.pickWithRay(ray);   
-        if (hit) {
-            if (hit.hit) {
-                // todo: y hits
-                // todo: non-axis-aligned surfaces
-                var normal = hit.getNormal(true);
-                var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
-                if (normal.z == 0) {
-                    x_hit_pos = pickedPoint.x;
-                }
-                else if (normal.x == 0) {
-                    z_hit_pos = pickedPoint.z;
-                }
-            }    
-        }
+    // scene picking https://doc.babylonjs.com/divingDeeper/mesh/interactions/picking_collisions instead
+    var hit = scene.pickWithRay(ray);   
+    if (hit) {
+        if (hit.hit && hit.distance < ray.length) {
+            // todo: non-axis-aligned surfaces
+            var normal = hit.getNormal(true);
+            var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
+            if (Math.abs(normal.y) == 1) {
+                y_hit_pos = pickedPoint.y + foxy_bottom_offset;
+                console.log("y hit obstacle: " + y_hit_pos);
+            }
+            else if (Math.abs(normal.x) == 1) {
+                console.log("x hit obstacle");
+                x_hit_pos = pickedPoint.x;
+            }
+            else if (Math.abs(normal.z) == 1) {
+                console.log("z hit obstacle");
+                z_hit_pos = pickedPoint.z;
+            }
+        }    
     }
     
+    // room extents
+    if (z_hit_pos == null) {
+        if (to.z - foxy_halfwidth < level_extents.min.z) {
+            z_hit_pos = level_extents.min.z + foxy_halfwidth;
+        }
+        if (to.z + foxy_halfwidth > level_extents.max.z) {
+            z_hit_pos = level_extents.max.z - foxy_halfwidth;
+        }
+    }
+    if (x_hit_pos == null) {
+        if (to.x - foxy_halfwidth < level_extents.min.x) {
+            x_hit_pos = level_extents.min.x + foxy_halfwidth;
+        }
+        if (to.x + foxy_halfwidth > level_extents.max.x) {
+            x_hit_pos = level_extents.max.x - foxy_halfwidth;
+        }
+    }
+    if (y_hit_pos == null) {
+        if (to.y - foxy_bottom_offset < level_extents.min.y) {
+            y_hit_pos = level_extents.min.y + foxy_bottom_offset;
+        }
+        if (to.y + foxy_top_offset > level_extents.max.y) {
+            y_hit_pos = level_extents.max.y - foxy_top_offset;
+        }
+    }
+
+
 
     if (y_hit_pos != null || x_hit_pos != null || z_hit_pos != null) {
-      return {
-        x_hit_pos: x_hit_pos,
-        y_hit_pos: y_hit_pos,
-        z_hit_pos: z_hit_pos
-      }
+        return {
+            x_hit_pos: x_hit_pos,
+            y_hit_pos: y_hit_pos,
+            z_hit_pos: z_hit_pos
+        }
     }
-  }
-  function startPitching(direction) {
+}
+function startPitching(direction) {
     var change = true;
     if (pitchForward && direction == 1) {
         change = false;
@@ -163,41 +180,41 @@ const maxLateralSpeed = 0.1;
         pitchBackward = true;
         }
     }
-  }
-  function stopPitching(direction) {
+}
+function stopPitching(direction) {
     lastPitch = foxyTransform.rotation.z;
     changePitchTime = getTimeInSeconds();
     if (direction == 1) {
-      pitchForward = false;
+        pitchForward = false;
     }
     else {
-      pitchBackward = false;
+        pitchBackward = false;
     }
-  }
-  function startPrepareJump() {
+}
+function startPrepareJump() {
     if (!jumping && !landing) {
-      if (!preparingToJump) {
+        if (!preparingToJump) {
         prepareJumpStartTime = getTimeInSeconds();
-      }
-      preparingToJump = true;
+        }
+        preparingToJump = true;
     }
-  }
-  function startJump() {
+}
+function startJump() {
     if (!jumping && !landing) {
-      pitchDirectionAtJump = currentPitchDirection();
-      jumpStartTime = getTimeInSeconds();
-      preparingToJump = false;
-      jumping = true;
-      var prepTime = getTimeInSeconds() - prepareJumpStartTime;
-      velocity_y = smoothstep(-0.2, 2, prepTime) * 20 + 2;
+        pitchDirectionAtJump = currentPitchDirection();
+        jumpStartTime = getTimeInSeconds();
+        preparingToJump = false;
+        jumping = true;
+        var prepTime = getTimeInSeconds() - prepareJumpStartTime;
+        velocity_y = smoothstep(-0.2, 2, prepTime) * 20 + 2;
     }
-  }
-  function doStep() {
+}
+function doStep() {
     if (getTimeInSeconds() > nextJumpStartTime) {
-      startPrepareJump();
+        startPrepareJump();
     }
     if (getTimeInSeconds() > nextJumpStartTime + nextJumpPrepLength) {
-      startJump();
+        startJump();
     }
     var roll = 0;
     var yaw = foxyTransform.rotation.y + currentYawDirection() * yawSpeed;
@@ -207,206 +224,204 @@ const maxLateralSpeed = 0.1;
     foxyPitchAnimation.goToFrame(foxyAnimRestFrame + Math.round(interpolatedCurrentPitch()*60/maxPitch));
     foxyPitchAnimation.pause();
     if (preparingToJump) {
-      var prepTime = getTimeInSeconds() - prepareJumpStartTime;
-      const freq = 1.0 / 7;
-      const amp = 0.1;
-      squish = smoothstep(0, 0.1, prepTime) * 0.5;
-      roll = smoothstep(0.3, 1, prepTime) * Math.sin((prepTime / freq) * Math.PI * 2 / speed_modifier) * amp;
+        var prepTime = getTimeInSeconds() - prepareJumpStartTime;
+        const freq = 1.0 / 7;
+        const amp = 0.1;
+        squish = smoothstep(0, 0.1, prepTime) * 0.5;
+        roll = smoothstep(0.3, 1, prepTime) * Math.sin((prepTime / freq) * Math.PI * 2 / speed_modifier) * amp;
     }
     if (jumping) {
-      var deltaTime = getTimeInSeconds() - lastStepTime;
-      const gravity = 9.8;
-      var newFoxyPosition = new BABYLON.Vector3();
-      newFoxyPosition.z = foxyPosition.z + (pitchDirectionAtJump * maxLateralSpeed) * Math.cos(foxyTransform.rotation.y + Math.PI/2);
-      newFoxyPosition.x = foxyPosition.x + (pitchDirectionAtJump * maxLateralSpeed) * Math.sin(foxyTransform.rotation.y + Math.PI/2);
-      newFoxyPosition.y = foxyPosition.y + deltaTime * velocity_y;
-      velocity_y = velocity_y - (gravity * deltaTime);
-      squish = 0.2 - 0.6 * Math.abs(velocity_y) / 20;
-  
-      collision = testCollisions(foxyPosition, newFoxyPosition);
-      if (collision == null) {
-        //    intersections = octree.intersectsRay(new BABYLON.Ray(foxyPosition, newFoxyPosition));
-        //    if (intersections.length == 0) {
-        foxyPosition = newFoxyPosition;
-      }
-      else {
-        // intersection
-        var delta = newFoxyPosition.subtract(foxyPosition);
-        if (collision.x_hit_pos != null) {
-            console.log("x_hit");
-            if (Math.abs(delta.x) > Math.abs(delta.z)) {
-                // in a sharp hit, we reverse direction and make a small change of angle
-                pitchDirectionAtJump *= -1;
-                yaw = -foxyTransform.rotation.y;
-            }
-            else {
-                // in a shallow hit, we bounce off the wall and point the new direction.
-                yaw = Math.PI - foxyTransform.rotation.y;
-            }
-            newFoxyPosition.x = collision.x_hit_pos + (foxyPosition.x - newFoxyPosition.x);
+        var deltaTime = getTimeInSeconds() - lastStepTime;
+        const gravity = 9.8;
+        var newFoxyPosition = new BABYLON.Vector3();
+        newFoxyPosition.z = foxyPosition.z + (pitchDirectionAtJump * maxLateralSpeed) * Math.cos(foxyTransform.rotation.y + Math.PI/2);
+        newFoxyPosition.x = foxyPosition.x + (pitchDirectionAtJump * maxLateralSpeed) * Math.sin(foxyTransform.rotation.y + Math.PI/2);
+        newFoxyPosition.y = foxyPosition.y + deltaTime * velocity_y;
+        velocity_y = velocity_y - (gravity * deltaTime);
+        squish = 0.2 - 0.6 * Math.abs(velocity_y) / 20;
+
+        collision = testCollisions(foxyPosition, newFoxyPosition);
+        if (collision == null) {
+            foxyPosition = newFoxyPosition;
         }
-        if (collision.z_hit_pos != null) {
-            console.log("z_hit");
-            if (Math.abs(delta.z) > Math.abs(delta.x)) {
-                pitchDirectionAtJump *= -1;
-                yaw = Math.PI - foxyTransform.rotation.y;
+        else {
+            // intersection
+            var delta = newFoxyPosition.subtract(foxyPosition);
+            if (collision.x_hit_pos != null) {
+                console.log("x_hit");
+                if (Math.abs(delta.x) > Math.abs(delta.z)) {
+                    // in a sharp hit, we reverse direction and make a small change of angle
+                    pitchDirectionAtJump *= -1;
+                    yaw = -foxyTransform.rotation.y;
+                }
+                else {
+                    // in a shallow hit, we bounce off the wall and point the new direction.
+                    yaw = Math.PI - foxyTransform.rotation.y;
+                }
+                newFoxyPosition.x = collision.x_hit_pos + (foxyPosition.x - newFoxyPosition.x);
             }
-            else {
-                yaw = -foxyTransform.rotation.y;
+            if (collision.z_hit_pos != null) {
+                console.log("z_hit");
+                if (Math.abs(delta.z) > Math.abs(delta.x)) {
+                    pitchDirectionAtJump *= -1;
+                    yaw = Math.PI - foxyTransform.rotation.y;
+                }
+                else {
+                    yaw = -foxyTransform.rotation.y;
+                }
+                newFoxyPosition.z = collision.z_hit_pos + (foxyPosition.z - newFoxyPosition.z);
             }
-            newFoxyPosition.z = collision.z_hit_pos + (foxyPosition.z - newFoxyPosition.z);
+            if (collision.y_hit_pos != null) {
+                landing_velocity = velocity_y;
+                velocity_y = 0;
+                newFoxyPosition.y = collision.y_hit_pos;
+                jumping = false;
+                landing = true;
+                landingStartTime = getTimeInSeconds();
+            }
+            foxyPosition = newFoxyPosition;
+            console.log("intersects: " + collision);
         }
-        foxyPosition = newFoxyPosition;
-        console.log("intersects: " + collision);
-        //        foxyPosition = newFoxyPosition;
-      }
-      if (foxyPosition.y < 0) {
-        landing_velocity = velocity_y;
-        velocity_y = 0;
-        foxyPosition.y = 0;
-        jumping = false;
-        landing = true;
-        landingStartTime = getTimeInSeconds();
-      }
     }
     if (landing) {
-      var landingTime = getTimeInSeconds() - landingStartTime;
-      var max_squish = 0.2 * landing_velocity / 20.0;
-      squish = max_squish * Math.cos(4.0 * Math.sqrt(landingTime) + Math.PI / 2);
-      if (landingTime > 0.6) {
+        var landingTime = getTimeInSeconds() - landingStartTime;
+        var max_squish = 0.2 * landing_velocity / 20.0;
+        squish = max_squish * Math.cos(4.0 * Math.sqrt(landingTime) + Math.PI / 2);
+        if (landingTime > 0.6) {
         landing = false;
         squish = 0;
         prepareNextJump();
-      }
+        }
     }
     foxyTransform.rotation = new BABYLON.Vector3(roll, yaw, pitch);
     foxyTransform.scaling = new BABYLON.Vector3(Math.sqrt(1.0 / (1 - squish * 0.78)), 1 - squish, Math.sqrt(1.0 / (1 - squish * 0.78)));
     foxyTransform.position = foxyPosition.add(new BABYLON.Vector3(0, -squish, 0));
-  
+
     lastStepTime = getTimeInSeconds();
-  }
-  function setupGame() {
+}
+function setupGame() {
     const canvas = document.getElementById("renderCanvas");
     const engine = new BABYLON.Engine(canvas, true);
-  
-    const createScene = function() {
-      const scene = new BABYLON.Scene(engine);
-  
-  
-      // load level
-      BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level1.glb").then((result) => {
-        level_meshes = result.meshes;
-        for (var i = 0; i < result.meshes.length; i++) {
-            level_meshes[i].receiveShadows = true;
-            if (level_meshes[i].id == "Room") {
-                level_extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
-                level_meshes[i].isPickable = false;
-            }
-        }
-        // load big foxy
-        BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
-          foxyTransform = result.meshes[1];
-          foxyTransform.isPickable = false;
-          foxyTransform.parent = null;
-          foxyTransform.rotation.y = Math.PI;
-          foxyPosition = foxyTransform.position;
-  
-          foxyPitchAnimation = scene.animationGroups[0];
-          foxyPitchAnimation.goToFrame(30);
-          foxyPitchAnimation.stop();
-          camera.lockedTarget = foxyTransform; //version 2.5 onwards
-  
-          //        octree = scene.createOrUpdateSelectionOctree(64, 2);
-          //        octree.dynamicContent.push(foxyTransform);
-  
-          var shadow_caster = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -1, 0), scene);
-          shadow_caster.position = new BABYLON.Vector3(0, level_extents.max.y, 0);
-          shadow_caster.autoUpdateExtends = true;
-          shadow_caster.autoCalcShadowZBounds;
 
-          // todo: fix shadow quality
-//          shadow_caster.shadowMinZ = shadow_caster.position.y - level_extents.max.y;
-//          shadow_caster.shadowMaxZ = shadow_caster.shadowMinZ + (level_extents.max.y - level_extents.min.y) + 20;
-      
-          const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
-          light.diffuse = new BABYLON.Color3(0.4, 0.4, 0.4);
-          light.specular = new BABYLON.Color3(0.4, 0.4, 0.4);
-          light.groundColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-          var shadowGenerator = new BABYLON.ShadowGenerator(1024, shadow_caster);
-          shadowGenerator.getShadowMap().renderList.push(foxyTransform);
-          shadowGenerator.useBlurExponentialShadowMap = true;
-          shadowGenerator.useKernelBlur = true;
-          shadowGenerator.blurKernel = 64;
-      
-          prepareNextJump();
-        })
-      });
-  
-      // setup camera
-      // Parameters: name, position, scene
-      camera = new BABYLON.FollowCamera("FollowCam", new BABYLON.Vector3(0, 10, -10), scene);
-  
-      // The goal distance of camera from target
-      camera.radius = 30;
-  
-      // The goal height of camera above local origin (centre) of target
-      camera.heightOffset = 1;
-  
-      // The goal rotation of camera around local origin (centre) of target in x y plane
-      camera.rotationOffset = 0;
-  
-      // Acceleration of camera in moving from current to goal position
-      camera.cameraAcceleration = 0.1;
-  
-      // The speed at which acceleration is halted
-      camera.maxCameraSpeed = 10;
-  
-      // This attaches the camera to the canvas
-      camera.attachControl(canvas, true);
-  
-      return scene;
+    const createScene = function() {
+        const scene = new BABYLON.Scene(engine);
+
+        // load level
+        BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level1.glb").then((result) => {
+            level_meshes = result.meshes;
+            for (var i = 0; i < result.meshes.length; i++) {
+                level_meshes[i].receiveShadows = true;
+                if (level_meshes[i].id == "Room") {
+                    level_extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
+                    level_meshes[i].isPickable = false;
+                }
+            }
+            // load big foxy
+            BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
+                foxyTransform = result.meshes[1];
+                foxyTransform.isPickable = false;
+                foxyTransform.parent = null;
+                foxyTransform.rotation.y = Math.PI;
+                foxyPosition = foxyTransform.position;
+
+                foxyPitchAnimation = scene.animationGroups[0];
+                foxyPitchAnimation.goToFrame(30);
+                foxyPitchAnimation.stop();
+                camera.lockedTarget = foxyTransform; //version 2.5 onwards
+
+                octree = scene.createOrUpdateSelectionOctree(64, 2);
+                octree.dynamicContent.push(foxyTransform);
+
+                var shadow_caster = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -1, 0), scene);
+                shadow_caster.position = new BABYLON.Vector3(0, level_extents.max.y, 0);
+                shadow_caster.autoUpdateExtends = true;
+                shadow_caster.autoCalcShadowZBounds;
+
+                // todo: fix shadow quality
+        //          shadow_caster.shadowMinZ = shadow_caster.position.y - level_extents.max.y;
+        //          shadow_caster.shadowMaxZ = shadow_caster.shadowMinZ + (level_extents.max.y - level_extents.min.y) + 20;
+            
+                const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+                light.diffuse = new BABYLON.Color3(0.4, 0.4, 0.4);
+                light.specular = new BABYLON.Color3(0.4, 0.4, 0.4);
+                light.groundColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                var shadowGenerator = new BABYLON.ShadowGenerator(1024, shadow_caster);
+                shadowGenerator.getShadowMap().renderList.push(foxyTransform);
+                shadowGenerator.useBlurExponentialShadowMap = true;
+                shadowGenerator.useKernelBlur = true;
+                shadowGenerator.blurKernel = 64;
+            
+                prepareNextJump();
+            });
+        });
+
+        // setup camera
+        // Parameters: name, position, scene
+        camera = new BABYLON.FollowCamera("FollowCam", new BABYLON.Vector3(0, 10, -10), scene);
+
+        // todo: anything smart that we can do to keep this camera in "good" spots, other than level design?
+
+        // The goal distance of camera from target
+        camera.radius = 30;
+
+        // The goal height of camera above local origin (centre) of target
+        camera.heightOffset = 1;
+
+        // The goal rotation of camera around local origin (centre) of target in x y plane
+        camera.rotationOffset = 0;
+
+        // Acceleration of camera in moving from current to goal position
+        camera.cameraAcceleration = 0.1;
+
+        // The speed at which acceleration is halted
+        camera.maxCameraSpeed = 10;
+
+        // This attaches the camera to the canvas
+        camera.attachControl(canvas, true);
+
+        return scene;
     };
     scene = createScene();
-  
+
     engine.runRenderLoop(function() {
-      if (foxyTransform != null) {
+        if (foxyTransform != null) {
         doStep();
-      }
-      scene.render();
+        }
+        scene.render();
     });
     window.addEventListener("resize", function() {
-      engine.resize();
+        engine.resize();
     })
     window.addEventListener("keydown", function(ev) {
-      if (foxyTransform != null) {
+        if (foxyTransform != null) {
         if (ev.key == "a") {
-          startPitching(1);
+            startPitching(1);
         }
         if (ev.key == "d") {
-          startPitching(-1);
+            startPitching(-1);
         }
         if (ev.key == "q") {
-          startYawing(1);
+            startYawing(1);
         }
         if (ev.key == "e") {
-          startYawing(-1);
+            startYawing(-1);
         }
-      }
+        }
     });
     window.addEventListener("keyup", function(ev) {
-      if (foxyTransform != null) {
+        if (foxyTransform != null) {
         if (ev.key == "a") {
-          stopPitching(1);
+            stopPitching(1);
         }
         if (ev.key == "d") {
-          stopPitching(-1);
+            stopPitching(-1);
         }
         if (ev.key == "q") {
-          stopYawing(1);
+            stopYawing(1);
         }
         if (ev.key == "e") {
-          stopYawing(-1);
+            stopYawing(-1);
         }
-      }
+        }
     });
-  }
+}
