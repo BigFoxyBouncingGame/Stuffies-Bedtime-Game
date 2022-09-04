@@ -1,5 +1,3 @@
-// todo: speed up game
-// todo: intersection with axis-aligned object sides
 // todo: intersection with floor and landings
 // todo: intersection with roofs / head-hit
 // todo: tweak game play control
@@ -15,42 +13,43 @@ function smoothstep(edge0, edge1, x) {
     x = (x - edge0) / (edge1 - edge0);
   
     return x * x * (3 - 2 * x);
-  }
-  var foxyTransform = null;
-  var foxyPosition = null;
-  
-  var camera = null;
-  var prepareJumpStartTime = 0;
-  var jumpStartTime = 0;
-  var lastStepTime = 0;
-  var landingStartTime = 0;
-  var preparingToJump = false;
-  var jumping = false;
-  var landing = false;
-  var velocity_y = 0;
-  var landing_velocity = 0;
-  var nextJumpStartTime = 0;
-  var nextJumpPrepLength = 0;
-  var pitchForward = false;
-  var pitchBackward = false;
-  var yawCW = false;
-  var yawCCW = false;
-  var lastPitch = 0;
-  var pitchDirectionAtJump = 0;
-  var changePitchTime = 0;
-  var octree = null;
-  var level_meshes = null;
-  var foxy_halfwidth = 1;
-  var foxy_bottom_offset = 0;
-  var foxy_top_offset = 0;
-  var url_prefix = "https://bigfoxybouncinggame.github.io/Stuffies-Bedtime-Game/";
-  var foxyPitchAnimation = null;
-  var foxyAnimRestFrame = 60;
+}
+var foxyTransform = null;
+var foxyPosition = null;
 
-  const speed_modifier = 2.0;
-  const yawSpeed = 0.1;
-  const maxPitch = Math.PI / 16;
-  const maxLateralSpeed = 0.1;
+var camera = null;
+var prepareJumpStartTime = 0;
+var jumpStartTime = 0;
+var lastStepTime = 0;
+var landingStartTime = 0;
+var preparingToJump = false;
+var jumping = false;
+var landing = false;
+var velocity_y = 0;
+var landing_velocity = 0;
+var nextJumpStartTime = 0;
+var nextJumpPrepLength = 0;
+var pitchForward = false;
+var pitchBackward = false;
+var yawCW = false;
+var yawCCW = false;
+var lastPitch = 0;
+var pitchDirectionAtJump = 0;
+var changePitchTime = 0;
+var octree = null;
+var level_meshes = null;
+var level_extents = null;
+var foxy_halfwidth = 1;
+var foxy_bottom_offset = 0;
+var foxy_top_offset = 0;
+var url_prefix = "https://bigfoxybouncinggame.github.io/Stuffies-Bedtime-Game/";
+var foxyPitchAnimation = null;
+var foxyAnimRestFrame = 60;
+
+const speed_modifier = 2.0;
+const yawSpeed = 0.1;
+const maxPitch = Math.PI / 16;
+const maxLateralSpeed = 0.1;
   function prepareNextJump() {
     nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
     nextJumpPrepLength = 2.0 * Math.random() ** 2.0 + 0.1;
@@ -104,33 +103,40 @@ function smoothstep(edge0, edge1, x) {
     var x_hit_pos;
     var y_hit_pos;
     var z_hit_pos;
-    for (var i in level_meshes) {
-      var m = level_meshes[i];
-  
-      if (m.id == "Room") {
-        var extents = BABYLON.Mesh.MinMax([m]);
-        if (to.z - foxy_halfwidth < extents.min.z) {
-          z_hit_pos = extents.min.z + foxy_halfwidth;
-        }
-        if (to.z + foxy_halfwidth > extents.max.z) {
-          z_hit_pos = extents.max.z - foxy_halfwidth;
-        }
-        if (to.x - foxy_halfwidth < extents.min.x) {
-          x_hit_pos = extents.min.x + foxy_halfwidth;
-        }
-        if (to.x + foxy_halfwidth > extents.max.x) {
-          x_hit_pos = extents.max.x - foxy_halfwidth;
-        }
-  
-        console.log(m.id);
-      }
-      else if (m.id != "__root__") {
-        var pickingInfo = m.intersects(ray, false, null, true);
-        if (pickingInfo != null && pickingInfo.hit) {
-          //        return pickingInfo;
-        }
-      }
+
+    if (to.z - foxy_halfwidth < level_extents.min.z) {
+        z_hit_pos = level_extents.min.z + foxy_halfwidth;
     }
+    if (to.z + foxy_halfwidth > level_extents.max.z) {
+        z_hit_pos = level_extents.max.z - foxy_halfwidth;
+    }
+    if (to.x - foxy_halfwidth < level_extents.min.x) {
+        x_hit_pos = level_extents.min.x + foxy_halfwidth;
+    }
+    if (to.x + foxy_halfwidth > level_extents.max.x) {
+        x_hit_pos = level_extents.max.x - foxy_halfwidth;
+    }
+
+    if (x_hit_pos == null && y_hit_pos == null && z_hit_pos == null) {
+        // scene picking https://doc.babylonjs.com/divingDeeper/mesh/interactions/picking_collisions instead
+        var hit = scene.pickWithRay(ray);   
+        if (hit) {
+            if (hit.hit) {
+                // todo: y hits
+                // todo: non-axis-aligned surfaces
+                var normal = hit.getNormal(true);
+                var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
+                if (normal.z == 0) {
+                    x_hit_pos = pickedPoint.x;
+                }
+                else if (normal.x == 0) {
+                    z_hit_pos = pickedPoint.z;
+                }
+            }    
+        }
+    }
+    
+
     if (y_hit_pos != null || x_hit_pos != null || z_hit_pos != null) {
       return {
         x_hit_pos: x_hit_pos,
@@ -293,12 +299,14 @@ function smoothstep(edge0, edge1, x) {
         for (var i = 0; i < result.meshes.length; i++) {
             level_meshes[i].receiveShadows = true;
             if (level_meshes[i].id == "Room") {
-                extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
+                level_extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
+                level_meshes[i].isPickable = false;
             }
         }
         // load big foxy
         BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
           foxyTransform = result.meshes[1];
+          foxyTransform.isPickable = false;
           foxyTransform.parent = null;
           foxyTransform.rotation.y = Math.PI;
           foxyPosition = foxyTransform.position;
@@ -312,13 +320,13 @@ function smoothstep(edge0, edge1, x) {
           //        octree.dynamicContent.push(foxyTransform);
   
           var shadow_caster = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -1, 0), scene);
-          shadow_caster.position = new BABYLON.Vector3(0, 120, 0);
+          shadow_caster.position = new BABYLON.Vector3(0, level_extents.max.y, 0);
           shadow_caster.autoUpdateExtends = true;
           shadow_caster.autoCalcShadowZBounds;
 
           // todo: fix shadow quality
-          shadow_caster.shadowMinZ = shadow_caster.position.y - extents.max.y;
-//          shadow_caster.shadowMaxZ = shadow_caster.shadowMinZ + (extents.max.y - extents.min.y) + 20;
+//          shadow_caster.shadowMinZ = shadow_caster.position.y - level_extents.max.y;
+//          shadow_caster.shadowMaxZ = shadow_caster.shadowMinZ + (level_extents.max.y - level_extents.min.y) + 20;
       
           const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
           light.diffuse = new BABYLON.Color3(0.4, 0.4, 0.4);
@@ -358,7 +366,7 @@ function smoothstep(edge0, edge1, x) {
   
       return scene;
     };
-    const scene = createScene();
+    scene = createScene();
   
     engine.runRenderLoop(function() {
       if (foxyTransform != null) {
