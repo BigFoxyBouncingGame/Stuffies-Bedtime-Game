@@ -1,4 +1,3 @@
-// todo: intersection with roofs / head-hit
 // todo: bed
 // todo: instructions / win / next level
 // todo: tweak game play control
@@ -97,8 +96,9 @@ function testCollisions(from, to) {
     var y_hit_pos;
     var z_hit_pos;
     var top_hit = false;
+    var mesh_id = null;
 
-    // scene picking     instead
+    // scene picking instead
     var hit = scene.pickWithRay(ray);
     var hit_bottom = scene.pickWithRay(ray_bottom);   
     var hit_top = scene.pickWithRay(ray_top);
@@ -106,7 +106,6 @@ function testCollisions(from, to) {
     hit = hit_bottom;
     if (hit) {
         if (hit.hit && hit.distance < ray.length) {
-            // todo: non-axis-aligned surfaces
             var normal = hit.getNormal(true);
             var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
             pickedPoint.y = hit.pickedPoint.y;
@@ -120,13 +119,13 @@ function testCollisions(from, to) {
             else if (Math.abs(normal.z) == primarylength) {
                 z_hit_pos = pickedPoint.z;
             }
+            mesh_id = hit.pickedMesh.id;
         }
     }
 
     hit = hit_top;
     if (hit) {
         if (hit.hit && hit.distance < ray.length) {
-            // todo: non-axis-aligned surfaces
             var normal = hit.getNormal(true);
             var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
             pickedPoint.y = hit.pickedPoint.y;
@@ -142,6 +141,7 @@ function testCollisions(from, to) {
             else if (Math.abs(normal.z) == primarylength) {
                 z_hit_pos = pickedPoint.z;
             }
+            mesh_id = hit.pickedMesh.id;
         }
     }
 
@@ -181,6 +181,7 @@ function testCollisions(from, to) {
             x_hit_pos: x_hit_pos,
             y_hit_pos: y_hit_pos,
             z_hit_pos: z_hit_pos,
+            mesh_id: mesh_id,
             top_hit: top_hit
         }
     }
@@ -272,6 +273,9 @@ function doStep() {
                     newFoxyPosition.y = collision.y_hit_pos - 0.01;
                 }
                 else {
+                    if (collision.mesh_id && collision.mesh_id.includes("Bed")) {
+                        console.log ("You Won!");
+                    }
                     landing_velocity = velocity_y;
                     velocity_y = 0;
                     newFoxyPosition.y = collision.y_hit_pos;
