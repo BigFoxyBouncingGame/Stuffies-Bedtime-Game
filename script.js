@@ -1,4 +1,3 @@
-// todo: intersection with floor and landings
 // todo: intersection with roofs / head-hit
 // todo: tweak game play control
 
@@ -29,10 +28,6 @@ var velocity_y = 0;
 var landing_velocity = 0;
 var nextJumpStartTime = 0;
 var nextJumpPrepLength = 0;
-var pitchForward = false;
-var pitchBackward = false;
-var yawCW = false;
-var yawCCW = false;
 var lastPitch = 0;
 var pitchDirectionAtJump = 0;
 var changePitchTime = 0;
@@ -48,7 +43,6 @@ var foxyAnimRestFrame = 60;
 
 const speed_modifier = 2.0;
 const yawSpeed = 0.1;
-const maxPitch = Math.PI / 16;
 const maxLateralSpeed = 0.1;
 function prepareNextJump() {
 nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
@@ -57,46 +51,35 @@ nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
 function getTimeInSeconds() {
     return speed_modifier * Date.now() / 1000;
 }
+var pitchAtLastTick = 0;
+var timeAtLastTick = 0;
 function currentPitchDirection() {
-    if (pitchForward && !pitchBackward) {
-        return 1;
+    var pitch = getKeyPair("d","a");
+    if (pitch != pitchAtLastTick) {
+        changePitchTime = getTimeInSeconds();
+        lastPitch = pitchAtLastTick;
+        timeAtLastTick = getTimeInSeconds();
+
+        console.log("pitch: "+pitch+" last "+pitchAtLastTick+" lastPitch "+lastPitch+" change "+changePitchTime);
+        pitchAtLastTick = pitch;
     }
-    else if (pitchBackward && !pitchForward) {
-        return -1;
-    }
-    else {
-        return 0;
-    }
+
+    return pitch;
+
 }
 function interpolatedCurrentPitch() {
-    return smoothstep(0, 0.2, getTimeInSeconds() - changePitchTime) * (currentPitchDirection() * maxPitch - lastPitch) + lastPitch;
+    const deltaTime = getTimeInSeconds() - changePitchTime;
+    const pitchChangeTime = 0.3;
+    const percent = deltaTime / pitchChangeTime;
+    if (percent > 1) {
+        return currentPitchDirection();
+    }
+    else {
+        return smoothstep(0, 1, percent) * (currentPitchDirection() - lastPitch) + lastPitch;
+    }
 }
 function currentYawDirection() {
-    if (yawCW && !yawCCW) {
-        return 1;
-    }
-    else if (yawCCW && !yawCW) {
-        return -1;
-    }
-    else {
-        return 0;
-    }
-}
-function startYawing(direction) {
-    if (direction == 1) {
-        yawCW = true;
-    }
-    else {
-        yawCCW = true;
-    }
-}
-function stopYawing(direction) {
-    if (direction == 1) {
-        yawCW = false;
-    }
-    else {
-        yawCCW = false;
-    }
+    return getKeyPair("e","q");
 }
 function testCollisions(from, to) {
     var bottom_offset_vec = new BABYLON.Vector3(0,foxy_bottom_offset - 0.01,0);
@@ -175,35 +158,7 @@ function testCollisions(from, to) {
         }
     }
 }
-function startPitching(direction) {
-    var change = true;
-    if (pitchForward && direction == 1) {
-        change = false;
-    }
-    if (pitchBackward && direction == -1) {
-        change = false;
-    }
-    if (change) {
-        lastPitch = foxyTransform.rotation.z;
-        changePitchTime = getTimeInSeconds();
-        if (direction == 1) {
-        pitchForward = true;
-        }
-        else {
-        pitchBackward = true;
-        }
-    }
-}
-function stopPitching(direction) {
-    lastPitch = foxyTransform.rotation.z;
-    changePitchTime = getTimeInSeconds();
-    if (direction == 1) {
-        pitchForward = false;
-    }
-    else {
-        pitchBackward = false;
-    }
-}
+
 function startPrepareJump() {
     if (!jumping && !landing) {
         if (!preparingToJump) {
@@ -223,6 +178,7 @@ function startJump() {
     }
 }
 function doStep() {
+    currentPitchDirection(); // call this early because it updates state about changes and last change time
     if (getTimeInSeconds() > nextJumpStartTime) {
         startPrepareJump();
     }
@@ -234,7 +190,7 @@ function doStep() {
     var pitch = 0;
     var squish = 0;
     foxyPitchAnimation.play();
-    foxyPitchAnimation.goToFrame(foxyAnimRestFrame + Math.round(interpolatedCurrentPitch()*60/maxPitch));
+    foxyPitchAnimation.goToFrame(foxyAnimRestFrame + Math.round(interpolatedCurrentPitch()*60));
     foxyPitchAnimation.pause();
     if (preparingToJump) {
         var prepTime = getTimeInSeconds() - prepareJumpStartTime;
@@ -293,7 +249,6 @@ function doStep() {
                 landingStartTime = getTimeInSeconds();
             }
             foxyPosition = newFoxyPosition;
-            console.log("intersects: " + collision);
         }
     }
     if (landing) {
@@ -405,36 +360,5 @@ function setupGame() {
     window.addEventListener("resize", function() {
         engine.resize();
     })
-    window.addEventListener("keydown", function(ev) {
-        if (foxyTransform != null) {
-        if (ev.key == "a") {
-            startPitching(1);
-        }
-        if (ev.key == "d") {
-            startPitching(-1);
-        }
-        if (ev.key == "q") {
-            startYawing(1);
-        }
-        if (ev.key == "e") {
-            startYawing(-1);
-        }
-        }
-    });
-    window.addEventListener("keyup", function(ev) {
-        if (foxyTransform != null) {
-        if (ev.key == "a") {
-            stopPitching(1);
-        }
-        if (ev.key == "d") {
-            stopPitching(-1);
-        }
-        if (ev.key == "q") {
-            stopYawing(1);
-        }
-        if (ev.key == "e") {
-            stopYawing(-1);
-        }
-        }
-    });
+    setupKeyHelper(getTimeInSeconds);
 }
