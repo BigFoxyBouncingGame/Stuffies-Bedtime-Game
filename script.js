@@ -1,4 +1,6 @@
 // todo: intersection with roofs / head-hit
+// todo: bed
+// todo: instructions / win / next level
 // todo: tweak game play control
 
 function smoothstep(edge0, edge1, x) {
@@ -36,7 +38,7 @@ var level_meshes = null;
 var level_extents = null;
 var foxy_halfwidth = 1;
 var foxy_bottom_offset = 1;
-var foxy_top_offset = 0;
+var foxy_top_offset = 1;
 var url_prefix = "https://bigfoxybouncinggame.github.io/Stuffies-Bedtime-Game/";
 var foxyPitchAnimation = null;
 var foxyAnimRestFrame = 60;
@@ -60,7 +62,6 @@ function currentPitchDirection() {
         lastPitch = pitchAtLastTick;
         timeAtLastTick = getTimeInSeconds();
 
-        console.log("pitch: "+pitch+" last "+pitchAtLastTick+" lastPitch "+lastPitch+" change "+changePitchTime);
         pitchAtLastTick = pitch;
     }
 
@@ -95,11 +96,13 @@ function testCollisions(from, to) {
     var x_hit_pos;
     var y_hit_pos;
     var z_hit_pos;
+    var top_hit = false;
 
-    // scene picking https://doc.babylonjs.com/divingDeeper/mesh/interactions/picking_collisions instead
-    var hit = scene.pickWithRay(ray);   
+    // scene picking     instead
+    var hit = scene.pickWithRay(ray);
     var hit_bottom = scene.pickWithRay(ray_bottom);   
     var hit_top = scene.pickWithRay(ray_top);
+
     hit = hit_bottom;
     if (hit) {
         if (hit.hit && hit.distance < ray.length) {
@@ -107,20 +110,39 @@ function testCollisions(from, to) {
             var normal = hit.getNormal(true);
             var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
             pickedPoint.y = hit.pickedPoint.y;
-            if (Math.abs(normal.y) == 1) {
+            if (normal.y == 1) {
                 y_hit_pos = pickedPoint.y + foxy_bottom_offset;
-                console.log("y hit obstacle: " + y_hit_pos);
             }
             else if (Math.abs(normal.x) == 1) {
-                console.log("x hit obstacle");
                 x_hit_pos = pickedPoint.x;
             }
             else if (Math.abs(normal.z) == 1) {
-                console.log("z hit obstacle");
                 z_hit_pos = pickedPoint.z;
             }
-        }    
+        }
     }
+
+    hit = hit_top;
+    if (hit) {
+        if (hit.hit && hit.distance < ray.length) {
+            // todo: non-axis-aligned surfaces
+            var normal = hit.getNormal(true);
+            var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
+            pickedPoint.y = hit.pickedPoint.y;
+            if (normal.y == -1) {
+                y_hit_pos = pickedPoint.y - foxy_top_offset;
+                // random guess above
+                top_hit = true;
+            }
+            else if (Math.abs(normal.x) == 1) {
+                x_hit_pos = pickedPoint.x;
+            }
+            else if (Math.abs(normal.z) == 1) {
+                z_hit_pos = pickedPoint.z;
+            }
+        }
+    }
+
     
     // room extents
     if (z_hit_pos == null) {
@@ -154,7 +176,8 @@ function testCollisions(from, to) {
         return {
             x_hit_pos: x_hit_pos,
             y_hit_pos: y_hit_pos,
-            z_hit_pos: z_hit_pos
+            z_hit_pos: z_hit_pos,
+            top_hit: top_hit
         }
     }
 }
@@ -217,7 +240,6 @@ function doStep() {
             // intersection
             var delta = newFoxyPosition.subtract(foxyPosition);
             if (collision.x_hit_pos != null) {
-                console.log("x_hit");
                 if (Math.abs(delta.x) > Math.abs(delta.z)) {
                     // in a sharp hit, we reverse direction and make a small change of angle
                     pitchDirectionAtJump *= -1;
@@ -230,7 +252,6 @@ function doStep() {
                 newFoxyPosition.x = collision.x_hit_pos + (foxyPosition.x - newFoxyPosition.x);
             }
             if (collision.z_hit_pos != null) {
-                console.log("z_hit");
                 if (Math.abs(delta.z) > Math.abs(delta.x)) {
                     pitchDirectionAtJump *= -1;
                     yaw = Math.PI - foxyTransform.rotation.y;
@@ -241,12 +262,18 @@ function doStep() {
                 newFoxyPosition.z = collision.z_hit_pos + (foxyPosition.z - newFoxyPosition.z);
             }
             if (collision.y_hit_pos != null) {
-                landing_velocity = velocity_y;
-                velocity_y = 0;
-                newFoxyPosition.y = collision.y_hit_pos;
-                jumping = false;
-                landing = true;
-                landingStartTime = getTimeInSeconds();
+                if (collision.top_hit) {
+                    velocity_y = -velocity_y;
+                    newFoxyPosition.y = collision.y_hit_pos - 0.01;
+                }
+                else {
+                    landing_velocity = velocity_y;
+                    velocity_y = 0;
+                    newFoxyPosition.y = collision.y_hit_pos;
+                    jumping = false;
+                    landing = true;
+                    landingStartTime = getTimeInSeconds();
+                }
             }
             foxyPosition = newFoxyPosition;
         }
