@@ -110,13 +110,14 @@ function testCollisions(from, to) {
             var normal = hit.getNormal(true);
             var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
             pickedPoint.y = hit.pickedPoint.y;
-            if (normal.y == 1) {
+            var primarylength = Math.max(Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z));
+            if (normal.y == primarylength) {
                 y_hit_pos = pickedPoint.y + foxy_bottom_offset;
             }
-            else if (Math.abs(normal.x) == 1) {
+            else if (Math.abs(normal.x) == primarylength) {
                 x_hit_pos = pickedPoint.x;
             }
-            else if (Math.abs(normal.z) == 1) {
+            else if (Math.abs(normal.z) == primarylength) {
                 z_hit_pos = pickedPoint.z;
             }
         }
@@ -129,15 +130,16 @@ function testCollisions(from, to) {
             var normal = hit.getNormal(true);
             var pickedPoint = hit.pickedPoint.add(normal.scale(foxy_halfwidth));
             pickedPoint.y = hit.pickedPoint.y;
-            if (normal.y == -1) {
+            var primarylength = Math.max(Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z));
+            if (normal.y == -primarylength) {
                 y_hit_pos = pickedPoint.y - foxy_top_offset;
                 // random guess above
                 top_hit = true;
             }
-            else if (Math.abs(normal.x) == 1) {
+            else if (Math.abs(normal.x) == primarylength) {
                 x_hit_pos = pickedPoint.x;
             }
-            else if (Math.abs(normal.z) == 1) {
+            else if (Math.abs(normal.z) == primarylength) {
                 z_hit_pos = pickedPoint.z;
             }
         }
@@ -166,6 +168,8 @@ function testCollisions(from, to) {
             y_hit_pos = level_extents.min.y + foxy_bottom_offset;
         }
         if (to.y + foxy_top_offset > level_extents.max.y) {
+            // note: we haven't tested this case yet, I hope it works
+            top_hit = true;
             y_hit_pos = level_extents.max.y - foxy_top_offset;
         }
     }
@@ -263,7 +267,8 @@ function doStep() {
             }
             if (collision.y_hit_pos != null) {
                 if (collision.top_hit) {
-                    velocity_y = -velocity_y;
+                    // todo: this should squash vertically
+                    velocity_y = 0;
                     newFoxyPosition.y = collision.y_hit_pos - 0.01;
                 }
                 else {
