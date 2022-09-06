@@ -24,10 +24,34 @@
       height: 100%;
       touch-action: none;
     }
+
+    #next-level {
+      visibility: hidden;
+    }
+    #you-win {
+      visibility: hidden;
+    }
+    .fs-overlay {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      border: 3px solid #73AD21;
+      background-color: azure;
+      opacity: 50%;
+      text-align: center;
+    }
+    .inset {
+      padding: 10% 10% 10% 10%;
+    }
   </style>
 </head>
 
 <body>
+  <div id="intro" class="fs-overlay"><div class="inset">It's Big Foxy's bed time, but Big Foxy is too excited. He keeps bouncing. Use "Q", "E", "A", and "D" keys to guide Big Foxy to bed. Click anywhere to start.</div></div>
+  <div id="next-level" class="fs-overlay"><div class="inset">Silly fox, this isn't your bed. I think you live over here. (Click anywhere to continue)</div></div>
+  <div id="you-win" class="fs-overlay"><div class="inset">You won!</div></div>
   <canvas id="renderCanvas" touch-action="none"></canvas>
   <script>
     setupGame();

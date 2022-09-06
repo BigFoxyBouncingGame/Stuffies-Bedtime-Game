@@ -1,5 +1,3 @@
-// todo: bed
-// todo: instructions / win / next level
 // todo: tweak game play control
 
 function smoothstep(edge0, edge1, x) {
@@ -41,12 +39,48 @@ var foxy_top_offset = 1;
 var url_prefix = "https://bigfoxybouncinggame.github.io/Stuffies-Bedtime-Game/";
 var foxyPitchAnimation = null;
 var foxyAnimRestFrame = 60;
+var won = false
 
 const speed_modifier = 2.0;
 const yawSpeed = 0.1;
 const maxLateralSpeed = 0.1;
+
+function getLevelsInfo() {
+    var level = 1;
+    var max_level = 1;
+    const urlParams = new URLSearchParams(location.search);
+    var level = urlParams.get("level");
+    var max_level = urlParams.get("max-level");
+    if (level == null) { level = 1; }
+    if (max_level == null) {max_level = 1; }
+    return {
+        level: level,
+        max_level: max_level
+    }
+}
+
+function doYouWon() {
+    const levelInfo = getLevelsInfo();
+    if (levelInfo.level == levelInfo.max_level) {
+        const youWinPanel = document.getElementById("you-win");
+        youWinPanel.style.visibility = "visible" ;
+    }
+    else {
+        const nextLevelPanel = document.getElementById("next-level");
+        nextLevelPanel.style.visibility = "visible" ;
+        nextLevelPanel.addEventListener("mouseup", (ev) => {
+            const currentHref = window.location.href;
+            const newLevelHref = currentHref.substring(0, currentHref.length - window.location.search.length)
+                +"?level="+(levelInfo.level+1)+"&max-level="+(levelInfo.max_level);
+            window.location.replace(newLevelHref);
+            intro.hidden = true;
+        })
+    
+    }
+}
+
 function prepareNextJump() {
-nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
+    nextJumpStartTime = getTimeInSeconds() + (Math.random() * 0.5);
     nextJumpPrepLength = 2.0 * Math.random() ** 2.0 + 0.1;
 }
 function getTimeInSeconds() {
@@ -274,7 +308,7 @@ function doStep() {
                 }
                 else {
                     if (collision.mesh_id && collision.mesh_id.includes("Bed")) {
-                        console.log ("You Won!");
+                        won = true;
                     }
                     landing_velocity = velocity_y;
                     velocity_y = 0;
@@ -292,9 +326,14 @@ function doStep() {
         var max_squish = 0.2 * landing_velocity / 20.0;
         squish = max_squish * Math.cos(4.0 * Math.sqrt(landingTime) + Math.PI / 2);
         if (landingTime > 0.6) {
-        landing = false;
-        squish = 0;
-        prepareNextJump();
+            if (won) {
+                doYouWon();
+            }
+            else {
+                landing = false;
+                squish = 0;
+                prepareNextJump();
+            }
         }
     }
     foxyTransform.rotation = new BABYLON.Vector3(roll, yaw, pitch);
@@ -304,6 +343,10 @@ function doStep() {
     lastStepTime = getTimeInSeconds();
 }
 function setupGame() {
+    const intro = document.getElementById("intro");
+    intro.addEventListener("mouseup", (ev) => {
+        intro.hidden = true;
+    })
     const canvas = document.getElementById("renderCanvas");
     const engine = new BABYLON.Engine(canvas, true);
 
@@ -311,7 +354,8 @@ function setupGame() {
         const scene = new BABYLON.Scene(engine);
 
         // load level
-        BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level1.glb").then((result) => {
+        
+        BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level"+getLevelsInfo().level+".glb").then((result) => {
             level_meshes = result.meshes;
             for (var i = 0; i < result.meshes.length; i++) {
                 level_meshes[i].receiveShadows = true;
