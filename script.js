@@ -363,6 +363,12 @@ function setupGame() {
                     level_extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
                     level_meshes[i].isPickable = false;
                 }
+                if (level_meshes[i].id[0] == "v") {
+                    level_meshes[i].isVisible = false;
+                }
+                if (level_meshes[i].id[0] == "c") {
+                    level_meshes[i].isPickable = false;
+                }
             }
             // load big foxy
             BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
