@@ -239,6 +239,41 @@ function startJump() {
         velocity_y = smoothstep(-0.2, 2, prepTime) * 20 + 2;
     }
 }
+function updateCameraPosition() {
+//    newFoxyPosition.z = foxyPosition.z + (pitchDirectionAtJump * maxLateralSpeed) * Math.cos(foxyTransform.rotation.y + Math.PI/2);
+//  newFoxyPosition.x = foxyPosition.x + (pitchDirectionAtJump * maxLateralSpeed) * Math.sin(foxyTransform.rotation.y + Math.PI/2);
+    var foxyRight = new BABYLON.Vector3(Math.sin(foxyTransform.rotation.y+Math.PI),0,Math.cos(foxyTransform.rotation.y+Math.PI));
+    var idealCameraDistance = 30;
+    const maxCameraChange = 1;
+    var cameraIdealPosition = foxyTransform.position.add(foxyRight.scale(idealCameraDistance));
+    var ray = new BABYLON.Ray(foxyPosition, cameraIdealPosition);
+
+    var hit = scene.pickWithRay(ray);
+
+    var cameraLimitedPosition = null;
+
+    if (hit && hit.hit && hit.distance < idealCameraDistance) {
+        cameraLimitedPosition = hit.pickedPoint;
+    }
+    else {
+        cameraLimitedPosition = cameraIdealPosition;
+    }
+    const buffer = new BABYLON.Vector3(-0.5,0,-0.5);
+    cameraLimitedPosition = BABYLON.Vector3.Clamp(cameraLimitedPosition, level_extents.min.subtract(buffer), level_extents.max.add(buffer));
+
+    if (cameraLimitedPosition.subtract(camera.position).length() > maxCameraChange) {
+        camera.position = camera.position.add((cameraLimitedPosition.subtract(camera.position).normalize().scale(maxCameraChange)));
+    }
+    else {
+        camera.position = cameraLimitedPosition;
+    }
+    // if camera is too close to target, push camera up slightly
+    var cameraDistance = camera.position.subtract(foxyTransform.position).length();
+    const minCameraDistance = 3;
+    if (cameraDistance < minCameraDistance) {
+        camera.position.y += (minCameraDistance-cameraDistance);
+    }
+}
 function doStep() {
     currentPitchDirection(); // call this early because it updates state about changes and last change time
     if (getTimeInSeconds() > nextJumpStartTime) {
@@ -307,7 +342,7 @@ function doStep() {
                     newFoxyPosition.y = collision.y_hit_pos - 0.01;
                 }
                 else {
-                    if (collision.mesh_id && collision.mesh_id.includes("Bed")) {
+                    if (collision.mesh_id && collision.mesh_id.includes("BED")) {
                         won = true;
                     }
                     landing_velocity = velocity_y;
@@ -340,6 +375,8 @@ function doStep() {
     foxyTransform.scaling = new BABYLON.Vector3(Math.sqrt(1.0 / (1 - squish * 0.78)), 1 - squish, Math.sqrt(1.0 / (1 - squish * 0.78)));
     foxyTransform.position = foxyPosition.add(new BABYLON.Vector3(0, -squish, 0));
 
+    updateCameraPosition();
+
     lastStepTime = getTimeInSeconds();
 }
 function setupGame() {
@@ -357,10 +394,11 @@ function setupGame() {
         
         BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "Level"+getLevelsInfo().level+".glb").then((result) => {
             level_meshes = result.meshes;
+            var room_meshes = [];
             for (var i = 0; i < result.meshes.length; i++) {
                 level_meshes[i].receiveShadows = true;
-                if (level_meshes[i].id == "Room") {
-                    level_extents = BABYLON.Mesh.MinMax([level_meshes[i]]);
+                if (level_meshes[i].id.startsWith("Room")) {
+                    room_meshes.push(level_meshes[i]);
                     level_meshes[i].isPickable = false;
                 }
                 if (level_meshes[i].id[0] == "v") {
@@ -370,6 +408,8 @@ function setupGame() {
                     level_meshes[i].isPickable = false;
                 }
             }
+            level_extents = BABYLON.Mesh.MinMax(room_meshes);
+
             // load big foxy
             BABYLON.SceneLoader.ImportMeshAsync("", url_prefix, "BIGFOXY_v2.glb").then((result) => {
                 foxyTransform = result.meshes[1];
@@ -381,6 +421,7 @@ function setupGame() {
                 foxyPitchAnimation = scene.animationGroups[0];
                 foxyPitchAnimation.goToFrame(30);
                 foxyPitchAnimation.stop();
+
                 camera.lockedTarget = foxyTransform; //version 2.5 onwards
 
                 octree = scene.createOrUpdateSelectionOctree(64, 2);
@@ -411,7 +452,7 @@ function setupGame() {
 
         // setup camera
         // Parameters: name, position, scene
-        camera = new BABYLON.FollowCamera("FollowCam", new BABYLON.Vector3(0, 10, -10), scene);
+        camera = new BABYLON.FreeCamera("FollowCam", new BABYLON.Vector3(0, 10, -10), scene);
 
         // todo: anything smart that we can do to keep this camera in "good" spots, other than level design?
 
@@ -439,9 +480,9 @@ function setupGame() {
 
     engine.runRenderLoop(function() {
         if (foxyTransform != null) {
-        doStep();
+            doStep();
+            scene.render();
         }
-        scene.render();
     });
     window.addEventListener("resize", function() {
         engine.resize();
