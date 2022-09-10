@@ -396,6 +396,11 @@ function setupGame() {
             level_meshes = result.meshes;
             var room_meshes = [];
             for (var i = 0; i < result.meshes.length; i++) {
+                if (level_meshes[i].material != null) {
+                    if (level_meshes[i].material.id == "Glass" || level_meshes[i].material.id == "Window") {
+                        level_meshes[i].material.alpha = 0.2;
+                    }
+                }
                 level_meshes[i].receiveShadows = true;
                 if (level_meshes[i].id.startsWith("Room")) {
                     room_meshes.push(level_meshes[i]);
