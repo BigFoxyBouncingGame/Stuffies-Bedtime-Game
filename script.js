@@ -89,7 +89,7 @@ function getTimeInSeconds() {
 var pitchAtLastTick = 0;
 var timeAtLastTick = 0;
 function currentPitchDirection() {
-    var pitch = getKeyPair("d","a");
+    var pitch = getKeyPair("a","d");
     if (pitch != pitchAtLastTick) {
         changePitchTime = getTimeInSeconds();
         lastPitch = pitchAtLastTick;
@@ -401,10 +401,13 @@ function setupGame() {
                     room_meshes.push(level_meshes[i]);
                     level_meshes[i].isPickable = false;
                 }
-                if (level_meshes[i].id[0] == "v") {
-                    level_meshes[i].isVisible = false;
+                if (level_meshes[i].id.startsWith("v")) {
+                    var invisibleMat = new BABYLON.StandardMaterial("invisibleMat", scene);
+                    invisibleMat.diffuseColor = new BABYLON.Color3(0, 1, 0);
+                    invisibleMat.alpha = 0;
+                    level_meshes[i].material = invisibleMat;
                 }
-                if (level_meshes[i].id[0] == "c") {
+                if (level_meshes[i].id.startsWith("c")) {
                     level_meshes[i].isPickable = false;
                 }
             }
