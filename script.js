@@ -426,9 +426,13 @@ function setupGame() {
                 foxyTransform.rotation.y = Math.PI;
                 foxyPosition = foxyTransform.position;
 
-                foxyPitchAnimation = scene.animationGroups[0];
-                foxyPitchAnimation.goToFrame(30);
-                foxyPitchAnimation.stop();
+                for (var i = 0; i < scene.animationGroups.length; i++) {
+                    if (scene.animationGroups[i].name == "FoxyAction") {
+                        foxyPitchAnimation = scene.animationGroups[i];
+                        foxyPitchAnimation.goToFrame(30);
+                        foxyPitchAnimation.stop();
+                    }
+                }
 
                 camera.lockedTarget = foxyTransform; //version 2.5 onwards
 
