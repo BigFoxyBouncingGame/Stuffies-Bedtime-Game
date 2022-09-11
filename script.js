@@ -1,5 +1,3 @@
-// todo: tweak game play control
-
 function smoothstep(edge0, edge1, x) {
     if (x < edge0)
       return 0;
@@ -246,9 +244,10 @@ function updateCameraPosition() {
     var idealCameraDistance = 30;
     const maxCameraChange = 1;
     var cameraIdealPosition = foxyTransform.position.add(foxyRight.scale(idealCameraDistance));
-    var ray = new BABYLON.Ray(foxyPosition, cameraIdealPosition);
+    var ray = new BABYLON.Ray(foxyPosition, cameraIdealPosition.subtract(foxyPosition).normalize());
 
     var hit = scene.pickWithRay(ray);
+
 
     var cameraLimitedPosition = null;
 
@@ -465,8 +464,6 @@ function setupGame() {
         // setup camera
         // Parameters: name, position, scene
         camera = new BABYLON.FreeCamera("FollowCam", new BABYLON.Vector3(0, 10, -10), scene);
-
-        // todo: anything smart that we can do to keep this camera in "good" spots, other than level design?
 
         // The goal distance of camera from target
         camera.radius = 30;
