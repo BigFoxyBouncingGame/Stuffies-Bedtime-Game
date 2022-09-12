@@ -397,7 +397,10 @@ function setupGame() {
             for (var i = 0; i < result.meshes.length; i++) {
                 if (level_meshes[i].material != null) {
                     if (level_meshes[i].material.id == "Glass" || level_meshes[i].material.id == "Window") {
-                        level_meshes[i].material.alpha = 0.2;
+                        level_meshes[i].material.alpha = 0.1;
+                    }
+                    if (level_meshes[i].material.id == "Water") {
+                        level_meshes[i].material.alpha = 0.4;
                     }
                 }
                 level_meshes[i].receiveShadows = true;
