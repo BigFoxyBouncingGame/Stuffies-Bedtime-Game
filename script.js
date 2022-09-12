@@ -400,7 +400,7 @@ function setupGame() {
                         level_meshes[i].material.alpha = 0.1;
                     }
                     if (level_meshes[i].material.id == "Water") {
-                        level_meshes[i].material.alpha = 0.4;
+                        level_meshes[i].material.alpha = 0.8;
                     }
                 }
                 level_meshes[i].receiveShadows = true;
