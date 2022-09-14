@@ -428,6 +428,7 @@ function setupGame() {
                     }
                     else {
                         scene.animationGroups[i].play();
+                        scene.animationGroups[i].loopAnimation = true;
                     }
                 }
 
